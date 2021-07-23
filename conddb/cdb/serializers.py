@@ -25,29 +25,47 @@ class GlobalTagCreateSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "status", "type", "created", "updated")
         #depth = 1
 
-class GlobalTagReadSerializer(serializers.ModelSerializer):
-
-    #type = serializers.SlugRelatedField(slug_field="name", queryset=GlobalTagType.objects.all())
-
-    class Meta:
-        model = GlobalTag
-        fields = ("id", "name", "status", "type", "created", "updated")
-        depth = 1
-
 class PayloadTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PayloadType
         fields = ("id", "name", "created")
 
+class PayloadListCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PayloadList
+        fields = ("id", "name", "global_tag", "payload_type", "created")
+
 class PayloadIOVSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PayloadIOV
-        fields = ("id", "payload_url", "major_iov", "minor_iov", "created")
+        fields = ("id", "payload_url", "major_iov", "minor_iov", "payload_list", "created")
 
-class PayloadListSerializer(serializers.ModelSerializer):
+
+class PayloadListReadSerializer(serializers.ModelSerializer):
+
+    payload_iov = PayloadIOVSerializer(many=True, read_only=True)
 
     class Meta:
         model = PayloadList
-        fields = ("id", "name", "payload_type", "payload_iov", "created")
+        fields = ("id", "name", "global_tag", "payload_type", "payload_iov", "created")
+        depth = 1
+
+class GlobalTagReadSerializer(serializers.ModelSerializer):
+
+    #type = serializers.SlugRelatedField(slug_field="name", queryset=GlobalTagType.objects.all())
+    payload_lists = PayloadListReadSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = GlobalTag
+        fields = ("id", "name", "status", "type", "payload_lists", "created", "updated")
+        depth = 1
+
+
+
+
+
+
+
