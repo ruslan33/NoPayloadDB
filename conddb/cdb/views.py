@@ -175,6 +175,68 @@ class PayloadIOVListCreationAPIView(ListCreateAPIView):
         self.perform_create(serializer)
         return Response(serializer.data)
 
+
+#API to create GT. GT provided as JSON body
+class GlobalTagCreateAPIView(CreateAPIView):
+
+    serializer_class = GlobalTagCreateSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        #TODO do the name check
+
+        self.perform_create(serializer)
+
+        return Response(serializer.data)
+
+class GlobalTagCloneAPIView(CreateAPIView):
+
+    serializer_class = GlobalTagReadSerializer
+
+    def get_globalTag(self):
+        sourceGlobalTagId = self.kwargs.get('sourceGlobalTagId')
+        return GlobalTag.objects.get(pk = sourceGlobalTagId)
+
+    def get_payloadLists(self, globalTag):
+        return PayloadList.objects.filter(global_tag=globalTag)
+
+    def get_payloadIOVs(self, payloadList):
+        return PayloadIOV.objects.filter(payload_list=payloadList)
+
+
+    def create(self, request, sourceGlobalTagId):
+        globalTag = self.get_globalTag()
+        #print(globalTag.id)
+        payloadLists = self.get_payloadLists(globalTag)
+
+        globalTag.id = None
+        globalTag.name = 'COPY_OF_'+ globalTag.name
+        self.perform_create(globalTag)
+
+        for pList in payloadLists:
+            payloadIOVs = self.get_payloadIOVs(pList)
+            pList.id = None
+            pList.global_tag = globalTag
+            self.perform_create(pList)
+            rp = []
+            for payload in payloadIOVs:
+                payload.id = None
+                payload.payload_list = pList
+                rp.append(payload)
+                #self.perform_create(payload)
+
+            #self.perform_create(rp)
+            PayloadIOV.objects.bulk_create(rp)
+
+        serializer = GlobalTagReadSerializer(globalTag)
+        #serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.data)
+
+
+#Interface to take list of PayloadIOVs groupped by PayloadLists for a given GT and IOVs
 class PayloadIOVsListAPIView(ListAPIView):
 
         def get_queryset(self):

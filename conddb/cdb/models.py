@@ -36,7 +36,8 @@ class GlobalTagType(models.Model):
         return smart_unicode(self.name)
 
 class GlobalTag(models.Model):
-    id = models.BigIntegerField(primary_key=True, db_column='id')
+    #id = models.BigIntegerField(primary_key=True, db_column='id')
+    id = models.AutoField(primary_key=True, db_column='id')
     name = models.CharField(max_length=80, db_column='name')
     description = models.CharField(max_length=255, db_column='description')
     status = models.ForeignKey(GlobalTagStatus, on_delete=models.CASCADE, null=True)
@@ -66,7 +67,8 @@ class PayloadType(models.Model):
         return smart_unicode(self.name)
 
 class PayloadList(models.Model):
-    id = models.BigIntegerField(primary_key=True, db_column='id')
+    #id = models.BigIntegerField(primary_key=True, db_column='id')
+    id  = models.AutoField(primary_key=True, db_column='id')
     name = models.CharField(max_length=80, db_column='name')
     description = models.CharField(max_length=255, db_column='description')
     global_tag = models.ForeignKey(GlobalTag, related_name='payload_lists', on_delete=models.CASCADE, null=True)
@@ -89,7 +91,8 @@ class PayloadList(models.Model):
 #    payload = models.ForeignKey(Payload, related_name='payload', on_delete=models.CASCADE, null=True)
 
 class PayloadIOV(models.Model):
-    id = models.BigIntegerField(primary_key=True, db_column='id',unique=True)
+    #id = models.BigIntegerField(primary_key=True, db_column='id',unique=True)
+    id = models.AutoField(primary_key = True, db_column = 'id')
     payload_url = models.CharField(max_length=80, db_column='payload_url')
     major_iov = models.BigIntegerField(db_column='major_iov')
     minor_iov = models.BigIntegerField(db_column='minor_iov')
