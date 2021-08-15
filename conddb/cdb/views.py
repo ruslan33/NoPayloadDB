@@ -81,7 +81,7 @@ class GlobalTagTypeCreationAPIView(ListCreateAPIView):
 
 #    authentication_classes = ()
 #    permission_classes = ()
-    seriaserializer_class = GlobalTagTypeSerializerlizer_class = GlobalTagTypeSerializer
+    serializer_class = GlobalTagTypeSerializer
 
 
     def get_queryset(self):
@@ -226,7 +226,6 @@ class GlobalTagCloneAPIView(CreateAPIView):
                 payload.payload_list = pList
                 rp.append(payload)
                 #self.perform_create(payload)
-
             #self.perform_create(rp)
             PayloadIOV.objects.bulk_create(rp)
 
@@ -241,31 +240,134 @@ class PayloadIOVsListAPIView(ListAPIView):
 
         def get_queryset(self):
 
-            globalTagId = self.kwargs.get('globalTagId')
-            majorIOV = self.kwargs.get('majorIOV')
-            minorIOV = self.kwargs.get('minorIOV')
 
-            plists = PayloadList.objects.filter(global_tag__id=globalTagId)
+            #gtName = self.kwargs.get('gtName')
+            #majorIOV = self.kwargs.get('majorIOV')
+            #minorIOV = self.kwargs.get('minorIOV')
+
+            gtName = self.request.GET.get('gtName')
+            majorIOV = self.request.GET.get('majorIOV')
+            minorIOV = self.request.GET.get('minorIOV')
+
+            #plists = PayloadList.objects.filter(global_tag__id=globalTagId)
+            plists = PayloadList.objects.filter(global_tag__name=gtName)
             piov_ids = []
             for pl in plists:
-                #print(pl)
                 piov = PayloadIOV.objects.filter(payload_list = pl, major_iov__lte = majorIOV,minor_iov__lte=minorIOV)
                 if piov:
                     piov=piov.latest('major_iov','minor_iov')
-                    #print(piov)
                     piov_ids.append(piov.id)
-
-            #print(piov_ids)
 
             piov_querset = PayloadIOV.objects.filter(id__in=piov_ids)
 
-            return PayloadList.objects.filter(global_tag__id=globalTagId).prefetch_related(Prefetch(
+            #return PayloadList.objects.filter(global_tag__id=globalTagId).prefetch_related(Prefetch(
+            return PayloadList.objects.filter(global_tag__name=gtName).prefetch_related(Prefetch(
                   'payload_iov',
                   queryset=piov_querset
                   )).filter(payload_iov__in=piov_querset).distinct()
 
 
-        def list(self, request, globalTagId, majorIOV, minorIOV ):
+        #def list(self, request, globalTagId, majorIOV, minorIOV ):
+        def list(self, request):
+
+            #gtName = request.GET.get('gtName')
+            #majorIOV = request.GET.get('majorIOV')
+            #minorIOV = request.GET.get('minorIOV')
+
+            queryset = self.get_queryset()
+            serializer = PayloadListReadSerializer(queryset, many=True)
+            return Response(serializer.data)
+
+
+#Interface to take list of PayloadIOVs groupped by PayloadLists for a given GT and IOVs
+class PayloadIOVsRangesListAPIView(ListAPIView):
+
+        def get_queryset(self):
+
+
+            #gtName = self.kwargs.get('gtName')
+            #majorIOV = self.kwargs.get('majorIOV')
+            #minorIOV = self.kwargs.get('minorIOV')
+
+            gtName = self.request.GET.get('gtName')
+            startMajorIOV = self.request.GET.get('startMajorIOV')
+            startMinorIOV = self.request.GET.get('startMinorIOV')
+            endMajorIOV = self.request.GET.get('endMajorIOV')
+            endMinorIOV = self.request.GET.get('endMinorIOV')
+
+            #plists = PayloadList.objects.filter(global_tag__id=globalTagId)
+            plists = PayloadList.objects.filter(global_tag__name=gtName)
+            piov_ids = []
+            for pl in plists:
+                piovs = PayloadIOV.objects.filter(payload_list = pl, major_iov__lte = endMajorIOV,minor_iov__lte=endMinorIOV).values_list('id', flat=True)
+                                                 #major_iov__gte = startMajorIOV,minor_iov__gte=startMinorIOV)
+                #print(piovs)
+
+                if piovs:
+                    piov_ids.extend(piovs)
+
+
+            #print(piov_ids)
+            piov_querset = PayloadIOV.objects.filter(id__in=piov_ids)
+
+            #print(piov_querset)
+            #print("Test")
+            #return PayloadList.objects.filter(global_tag__id=globalTagId).prefetch_related(Prefetch(
+            return PayloadList.objects.filter(global_tag__name=gtName).prefetch_related(Prefetch(
+                  'payload_iov',
+                  queryset=piov_querset
+                  )).filter(payload_iov__in=piov_querset).distinct()
+
+
+        #def list(self, request, globalTagId, majorIOV, minorIOV ):
+        def list(self, request):
+
+            #gtName = request.GET.get('gtName')
+            #majorIOV = request.GET.get('majorIOV')
+            #minorIOV = request.GET.get('minorIOV')
+
+            queryset = self.get_queryset()
+            serializer = PayloadListReadSerializer(queryset, many=True)
+            return Response(serializer.data)
+
+#Interface to take list of PayloadIOVs ranges groupped by PayloadLists for a given GT and IOVs
+class PayloadIOVsListAPIView(ListAPIView):
+
+        def get_queryset(self):
+
+
+            #gtName = self.kwargs.get('gtName')
+            #majorIOV = self.kwargs.get('majorIOV')
+            #minorIOV = self.kwargs.get('minorIOV')
+
+            gtName = self.request.GET.get('gtName')
+            majorIOV = self.request.GET.get('majorIOV')
+            minorIOV = self.request.GET.get('minorIOV')
+
+            #plists = PayloadList.objects.filter(global_tag__id=globalTagId)
+            plists = PayloadList.objects.filter(global_tag__name=gtName)
+            piov_ids = []
+            for pl in plists:
+                piov = PayloadIOV.objects.filter(payload_list = pl, major_iov__lte = majorIOV,minor_iov__lte=minorIOV)
+                if piov:
+                    piov=piov.latest('major_iov','minor_iov')
+                    piov_ids.append(piov.id)
+
+            piov_querset = PayloadIOV.objects.filter(id__in=piov_ids)
+
+            #return PayloadList.objects.filter(global_tag__id=globalTagId).prefetch_related(Prefetch(
+            return PayloadList.objects.filter(global_tag__name=gtName).prefetch_related(Prefetch(
+                  'payload_iov',
+                  queryset=piov_querset
+                  )).filter(payload_iov__in=piov_querset).distinct()
+
+
+        #def list(self, request, globalTagId, majorIOV, minorIOV ):
+        def list(self, request):
+
+            #gtName = request.GET.get('gtName')
+            #majorIOV = request.GET.get('majorIOV')
+            #minorIOV = request.GET.get('minorIOV')
 
             queryset = self.get_queryset()
             serializer = PayloadListReadSerializer(queryset, many=True)
