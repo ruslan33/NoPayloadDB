@@ -2,6 +2,8 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.response import Response
 # from rest_framework.permissions import IsAuthenticated
 
+from django.db import transaction
+
 from django.db.models import Prefetch
 from django.db.models import QuerySet
 
@@ -191,6 +193,9 @@ class GlobalTagCreateAPIView(CreateAPIView):
 
         return Response(serializer.data)
 
+
+#GT deep copy endpoint
+
 class GlobalTagCloneAPIView(CreateAPIView):
 
     serializer_class = GlobalTagReadSerializer
@@ -205,7 +210,7 @@ class GlobalTagCloneAPIView(CreateAPIView):
     def get_payloadIOVs(self, payloadList):
         return PayloadIOV.objects.filter(payload_list=payloadList)
 
-
+    @transaction.atomic
     def create(self, request, sourceGlobalTagId):
         globalTag = self.get_globalTag()
         #print(globalTag.id)
@@ -279,7 +284,7 @@ class PayloadIOVsListAPIView(ListAPIView):
             return Response(serializer.data)
 
 
-#Interface to take list of PayloadIOVs groupped by PayloadLists for a given GT and IOVs
+#Interface to take list of PayloadIOVs ranges groupped by PayloadLists for a given GT and IOVs
 class PayloadIOVsRangesListAPIView(ListAPIView):
 
         def get_queryset(self):
@@ -295,12 +300,23 @@ class PayloadIOVsRangesListAPIView(ListAPIView):
             endMajorIOV = self.request.GET.get('endMajorIOV')
             endMinorIOV = self.request.GET.get('endMinorIOV')
 
+            #TODO:handle endIOVs -1 -1
+            q = {'major_iov__gte': startMajorIOV, 'minor_iov__gte': startMinorIOV}
+            if endMajorIOV != '-1':
+                q.update({'major_iov__lte': endMajorIOV})
+            if endMinorIOV != '-1':
+                q.update({'minor_iov__lte': endMinorIOV})
+
             #plists = PayloadList.objects.filter(global_tag__id=globalTagId)
             plists = PayloadList.objects.filter(global_tag__name=gtName)
             piov_ids = []
             for pl in plists:
-                piovs = PayloadIOV.objects.filter(payload_list = pl, major_iov__lte = endMajorIOV,minor_iov__lte=endMinorIOV).values_list('id', flat=True)
-                                                 #major_iov__gte = startMajorIOV,minor_iov__gte=startMinorIOV)
+
+                #piovs = PayloadIOV.objects.filter(payload_list = pl, major_iov__lte = endMajorIOV,minor_iov__lte=endMinorIOV,
+                #                                  major_iov__gte = startMajorIOV,minor_iov__gte=startMinorIOV).values_list('id', flat=True)
+                q.update({'payload_list': pl})
+                #print(q)
+                piovs = PayloadIOV.objects.filter(**q).values_list('id', flat=True)
                 #print(piovs)
 
                 if piovs:
@@ -312,49 +328,6 @@ class PayloadIOVsRangesListAPIView(ListAPIView):
 
             #print(piov_querset)
             #print("Test")
-            #return PayloadList.objects.filter(global_tag__id=globalTagId).prefetch_related(Prefetch(
-            return PayloadList.objects.filter(global_tag__name=gtName).prefetch_related(Prefetch(
-                  'payload_iov',
-                  queryset=piov_querset
-                  )).filter(payload_iov__in=piov_querset).distinct()
-
-
-        #def list(self, request, globalTagId, majorIOV, minorIOV ):
-        def list(self, request):
-
-            #gtName = request.GET.get('gtName')
-            #majorIOV = request.GET.get('majorIOV')
-            #minorIOV = request.GET.get('minorIOV')
-
-            queryset = self.get_queryset()
-            serializer = PayloadListReadSerializer(queryset, many=True)
-            return Response(serializer.data)
-
-#Interface to take list of PayloadIOVs ranges groupped by PayloadLists for a given GT and IOVs
-class PayloadIOVsListAPIView(ListAPIView):
-
-        def get_queryset(self):
-
-
-            #gtName = self.kwargs.get('gtName')
-            #majorIOV = self.kwargs.get('majorIOV')
-            #minorIOV = self.kwargs.get('minorIOV')
-
-            gtName = self.request.GET.get('gtName')
-            majorIOV = self.request.GET.get('majorIOV')
-            minorIOV = self.request.GET.get('minorIOV')
-
-            #plists = PayloadList.objects.filter(global_tag__id=globalTagId)
-            plists = PayloadList.objects.filter(global_tag__name=gtName)
-            piov_ids = []
-            for pl in plists:
-                piov = PayloadIOV.objects.filter(payload_list = pl, major_iov__lte = majorIOV,minor_iov__lte=minorIOV)
-                if piov:
-                    piov=piov.latest('major_iov','minor_iov')
-                    piov_ids.append(piov.id)
-
-            piov_querset = PayloadIOV.objects.filter(id__in=piov_ids)
-
             #return PayloadList.objects.filter(global_tag__id=globalTagId).prefetch_related(Prefetch(
             return PayloadList.objects.filter(global_tag__name=gtName).prefetch_related(Prefetch(
                   'payload_iov',
